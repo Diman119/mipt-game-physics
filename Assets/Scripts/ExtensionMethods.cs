@@ -11,4 +11,10 @@ public static class ExtensionMethods {
         result.m21 = v.x;
         return result;
     }
+
+    public static Vector3 RandomVectorInBounds(Bounds bounds) => new Vector3(
+        Random.Range(bounds.min.x, bounds.max.x),
+        Random.Range(bounds.min.y, bounds.max.y),
+        Random.Range(bounds.min.z, bounds.max.z)
+    );
 }

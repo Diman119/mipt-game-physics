@@ -20,6 +20,27 @@ public class MyRigidbody : MonoBehaviour {
 
     public Matrix3x3 LocalI => _localI;
     public float Mass => _mass;
+    public Vector3 Size => _size;
+
+    Bounds _aabb;
+    public Bounds AABB => _aabb;
+
+    public void UpdateAABB() {
+        var pos = transform.position;
+        var rot = transform.rotation;
+        var ext = _size / 2f;
+        var corner = rot * ext;
+        _aabb.SetMinMax(pos - corner, pos + corner);
+        corner = rot * new Vector3(-ext.x, ext.y, ext.z);
+        _aabb.Encapsulate(pos + corner);
+        _aabb.Encapsulate(pos - corner);
+        corner = rot * new Vector3(ext.x, -ext.y, ext.z);
+        _aabb.Encapsulate(pos + corner);
+        _aabb.Encapsulate(pos - corner);
+        corner = rot * new Vector3(ext.x, ext.y, -ext.z);
+        _aabb.Encapsulate(pos + corner);
+        _aabb.Encapsulate(pos - corner);
+    }
     
     public Vector3 L {
         get {
@@ -144,8 +165,19 @@ public class MyRigidbody : MonoBehaviour {
         omega = new Vector3(dq.x, dq.y, dq.z) * (Mathf.Sign(dq.w) * 2 / Dt);
     }
 
-    void Awake() {
+    public void SetSizeAndMass(Vector3 newSize, float mass) {
+        _size = newSize;
+        _mass = mass;
+        
+        if (transform.childCount > 0) {
+            transform.GetChild(0).localScale = newSize;
+        }
+        
         _localI = GetBoxI(_mass, _size);
         _localI_inv = _localI.Inverse();
+    }
+
+    void Awake() {
+        SetSizeAndMass(_size, _mass);
     }
 }
