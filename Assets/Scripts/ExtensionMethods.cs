@@ -17,4 +17,7 @@ public static class ExtensionMethods {
         Random.Range(bounds.min.y, bounds.max.y),
         Random.Range(bounds.min.z, bounds.max.z)
     );
+
+    // Vector4 extension to access xyz as Vector3
+    public static Vector3 xyz(this Vector4 v) => new Vector3(v.x, v.y, v.z);
 }

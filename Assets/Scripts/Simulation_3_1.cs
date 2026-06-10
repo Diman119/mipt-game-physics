@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 public enum BroadphaseType {
@@ -49,9 +50,16 @@ public class Simulation_3_1 : MonoBehaviour {
           b.IntegrateVelocities();
           b.ApplyVelocities();
         }
-        
-        
-        
+
+        // Run broadphase and narrowphase
+        IEnumerator<Broadphase.IntPair> broadphase;
+        if (_broadphaseType == BroadphaseType.Basic) {
+            broadphase = Broadphase.Basic(_bodies);
+        } else {
+            broadphase = Broadphase.SpatialGrid(_bodies, _gridCellSize);
+        }
+        Narrowphase.GenerateContacts(_bodies, broadphase);
+
         foreach (var b in _bodies) {
             if (b.Mass == 0f) {
                 continue;

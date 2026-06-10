@@ -40,7 +40,7 @@ public class Simulation_2_3 : MonoBehaviour {
         _rb1.ApplyVelocities();
         _rb2.ApplyVelocities();
 
-        var alphaTilde = _compliance / (Dt * Dt);
+        var alpha = _compliance / (Dt * Dt);
         var r1W = _anchor1.position - _rb1.transform.position;
         var r2W = _anchor2.position - _rb2.transform.position;
         var d = _anchor2.position - _anchor1.position;
@@ -55,7 +55,7 @@ public class Simulation_2_3 : MonoBehaviour {
         var w2 = 1f / _rb2.Mass + Vector3.Dot(rxn2, Iinv2.MultiplyVector(rxn2));
         var w = w1 + w2;
 
-        var dLambda = (-c - alphaTilde * _lambda) / (w + alphaTilde);
+        var dLambda = (-c - alpha * _lambda) / (w + alpha);
         _lambda += dLambda;
         _rb1.ApplyImpulseToPositions(r1W, n * -dLambda);
         _rb2.ApplyImpulseToPositions(r2W, n * dLambda);
