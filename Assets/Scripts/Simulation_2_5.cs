@@ -41,13 +41,7 @@ public class Simulation_2_5 : MonoBehaviour {
         var len = d.magnitude;
         var n = Mathf.Approximately(len, 0f) ? Vector3.up : d / len;
         var c = len - _constraintLength;
-        var Iinv1 = _rb1.GlobalI_inv;
-        var Iinv2 = _rb2.GlobalI_inv;
-        var rxn1 = Vector3.Cross(r1W, n);
-        var rxn2 = Vector3.Cross(r2W, n);
-        var w1 = 1f / _rb1.Mass + Vector3.Dot(rxn1, Iinv1.MultiplyVector(rxn1));
-        var w2 = 1f / _rb2.Mass + Vector3.Dot(rxn2, Iinv2.MultiplyVector(rxn2));
-        var w = w1 + w2;
+        var w = MyRigidbody.GetEffectiveInvMass(_rb1, _rb2, r1W, r2W, n);
         
         for (int i = 0; i < _SIIterations; ++i) {
             var relativeVelocity = Vector3.Dot(n, _rb2.GetPointVelocity(r2W) - _rb1.GetPointVelocity(r1W));
@@ -56,8 +50,8 @@ public class Simulation_2_5 : MonoBehaviour {
             _rb2.ApplyImpulseToVelocities(r2W, n * dLambda);
         }
         
-        _rb1.ApplyVelocities();
-        _rb2.ApplyVelocities();
+        _rb1.IntegratePositions();
+        _rb2.IntegratePositions();
         
         for (int i = 0; i < _positionIterations; ++i) {
             r1W = _anchor1.position - _rb1.transform.position;
@@ -66,14 +60,10 @@ public class Simulation_2_5 : MonoBehaviour {
             len = d.magnitude;
             n = Mathf.Approximately(len, 0f) ? Vector3.up : d / len;
             c = len - _constraintLength;
-            if (Mathf.Abs(c) < 1e-6f) break;
-            Iinv1 = _rb1.GlobalI_inv;
-            Iinv2 = _rb2.GlobalI_inv;
-            rxn1 = Vector3.Cross(r1W, n);
-            rxn2 = Vector3.Cross(r2W, n);
-            w1 = 1f / _rb1.Mass + Vector3.Dot(rxn1, Iinv1.MultiplyVector(rxn1));
-            w2 = 1f / _rb2.Mass + Vector3.Dot(rxn2, Iinv2.MultiplyVector(rxn2));
-            w = w1 + w2;
+            if (Mathf.Abs(c) < 1e-6f) {
+                break;
+            }
+            w = MyRigidbody.GetEffectiveInvMass(_rb1, _rb2, r1W, r2W, n);
             
             var dLambda = -c / w;
             _rb1.ApplyImpulseToPositions(r1W, n * -dLambda);

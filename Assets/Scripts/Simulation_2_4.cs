@@ -42,25 +42,19 @@ public class Simulation_2_4 : MonoBehaviour {
         var len = d.magnitude;
         var n = Mathf.Approximately(len, 0f) ? Vector3.up : d / len;
         var c = len - _constraintLength;
-        var Iinv1 = _rb1.GlobalI_inv;
-        var Iinv2 = _rb2.GlobalI_inv;
-        var rxn1 = Vector3.Cross(r1W, n);
-        var rxn2 = Vector3.Cross(r2W, n);
-        var w1 = 1f / _rb1.Mass + Vector3.Dot(rxn1, Iinv1.MultiplyVector(rxn1));
-        var w2 = 1f / _rb2.Mass + Vector3.Dot(rxn2, Iinv2.MultiplyVector(rxn2));
-        var w = w1 + w2;
+        var w = MyRigidbody.GetEffectiveInvMass(_rb1, _rb2, r1W, r2W, n);
         
         _rb1.ApplyImpulseToVelocities(r1W, n * -_lambda);
         _rb2.ApplyImpulseToVelocities(r2W, n * _lambda);
         for (int i = 0; i < _SIIterations; ++i) {
             var relativeVelocity = Vector3.Dot(n, _rb2.GetPointVelocity(r2W) - _rb1.GetPointVelocity(r1W));
-            var dLambda = (-relativeVelocity - _baumgarte * c) / w;
+            var dLambda = (-relativeVelocity - _baumgarte * c / Dt) / w;
             _lambda += dLambda;
             _rb1.ApplyImpulseToVelocities(r1W, n * -dLambda);
             _rb2.ApplyImpulseToVelocities(r2W, n * dLambda);
         }
         
-        _rb1.ApplyVelocities();
-        _rb2.ApplyVelocities();
+        _rb1.IntegratePositions();
+        _rb2.IntegratePositions();
     }
 }

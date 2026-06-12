@@ -23,6 +23,6 @@ public class SpringForce : MonoBehaviour {
     void FixedUpdate() {
         _rb.ApplyForceAtPoint((_anchor1.position - _anchor2.position) * _k, _anchor2.position);
         _rb.IntegrateVelocities();
-        _rb.ApplyVelocities();
+        _rb.IntegratePositions();
     }
 }

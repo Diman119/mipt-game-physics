@@ -7,8 +7,8 @@ public class MyRigidbody : MonoBehaviour {
     [SerializeField] float _linearDamp;
     [SerializeField] float _angularDamp;
 
-    [HideInInspector] public Vector3 velocity;
-    [HideInInspector] public Vector3 omega;
+    public Vector3 velocity;
+    public Vector3 omega;
     Matrix3x3 _localI;
     Matrix3x3 _localI_inv;
 
@@ -20,6 +20,7 @@ public class MyRigidbody : MonoBehaviour {
 
     public Matrix3x3 LocalI => _localI;
     public float Mass => _mass;
+    public float InvMass => _mass == 0f ? 0f : 1f / _mass;
     public Vector3 Size => _size;
 
     Bounds _aabb;
@@ -68,9 +69,9 @@ public class MyRigidbody : MonoBehaviour {
         return result;
     }
 
-    Vector3 ApplyLinearVelocity(Vector3 v) => transform.position + v * Dt;
+    Vector3 IntegratePosition(Vector3 v) => transform.position + v * Dt;
 
-    public Quaternion ApplyAngularVelocity(Vector3 w) => ApplyAngularDelta(w * Dt);
+    public Quaternion IntegrateRotation(Vector3 w) => ApplyAngularDelta(w * Dt);
     
     public Quaternion ApplyAngularDelta(Vector3 w) {
         var rotation = transform.rotation;
@@ -81,8 +82,8 @@ public class MyRigidbody : MonoBehaviour {
         return rotation;
     }
 
-    public void ApplyVelocities() {
-        transform.SetLocalPositionAndRotation(ApplyLinearVelocity(velocity), ApplyAngularVelocity(omega));
+    public void IntegratePositions() {
+        transform.SetPositionAndRotation(IntegratePosition(velocity), IntegrateRotation(omega));
     }
 
     public Vector3 IntegrateOmegaLocalExplicitGyro() {
@@ -172,11 +173,24 @@ public class MyRigidbody : MonoBehaviour {
         if (transform.childCount > 0) {
             transform.GetChild(0).localScale = newSize;
         }
-        
-        _localI = GetBoxI(_mass, _size);
-        _localI_inv = _localI.Inverse();
+
+        if (_mass > 0) {
+            _localI = GetBoxI(_mass, _size);
+            _localI_inv = _localI.Inverse();
+        }
     }
 
+    public float GetEffectiveInvMass(Vector3 offsetGlobal, Vector3 normal) {
+        if (Mass == 0f) {
+            return 0f;
+        }
+        var cross = Vector3.Cross(offsetGlobal, normal);
+        return InvMass + Vector3.Dot(cross, GlobalI_inv.MultiplyVector(cross));
+    }
+
+    public static float GetEffectiveInvMass(MyRigidbody rb1, MyRigidbody rb2, Vector3 offset1, Vector3 offset2, Vector3 normal) =>
+        rb1.GetEffectiveInvMass(offset1, normal) + rb2.GetEffectiveInvMass(offset2, normal);
+    
     void Awake() {
         SetSizeAndMass(_size, _mass);
     }

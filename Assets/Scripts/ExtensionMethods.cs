@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Reflection;
 using UnityEngine;
 
 public static class ExtensionMethods {
@@ -12,12 +14,18 @@ public static class ExtensionMethods {
         return result;
     }
 
-    public static Vector3 RandomVectorInBounds(Bounds bounds) => new Vector3(
-        Random.Range(bounds.min.x, bounds.max.x),
-        Random.Range(bounds.min.y, bounds.max.y),
-        Random.Range(bounds.min.z, bounds.max.z)
+    public static Vector3 RandomVectorBetween(Vector3 min, Vector3 max) => new Vector3(
+        Random.Range(min.x, max.x),
+        Random.Range(min.y, max.y),
+        Random.Range(min.z, max.z)
     );
 
-    // Vector4 extension to access xyz as Vector3
-    public static Vector3 xyz(this Vector4 v) => new Vector3(v.x, v.y, v.z);
+    static class ArrayAccessor<T> {
+        public static readonly FieldInfo itemsField =
+            typeof(List<T>).GetField("_items", BindingFlags.NonPublic | BindingFlags.Instance);
+    }
+
+    public static T[] GetInternalArray<T>(this List<T> list) {
+        return (T[])ArrayAccessor<T>.itemsField.GetValue(list);
+    }
 }

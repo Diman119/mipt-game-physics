@@ -4,10 +4,27 @@ using UnityEngine;
 public static class Broadphase {
     public struct IntPair {
         public int i1, i2;
+
+        // Encode pair as long for HashSet (smaller index in upper 32 bits)
+        public long ToLong() {
+            if (i1 < i2) {
+                return ((long)i1 << 32) | (uint)i2;
+            } else {
+                return ((long)i2 << 32) | (uint)i1;
+            }
+        }
+
+        public static IntPair FromLong(long value) {
+            return new IntPair { i1 = (int)(value >> 32), i2 = (int)(value & 0xFFFFFFFF) };
+        }
     }
 
     // Reusable grid for spatial partitioning - persists across frames
     private static readonly Dictionary<long, List<int>> _grid = new Dictionary<long, List<int>>();
+    private static readonly Stack<List<int>> _listIntPool = new();
+    // Reusable HashSet for deduping pairs
+    private static readonly HashSet<long> _pairSet = new HashSet<long>();
+    private static readonly List<IntPair> _pairList = new List<IntPair>();
 
     // Encodes 3D cell coordinates into a single long
     private static long EncodeCell(int ix, int iy, int iz) {
@@ -26,9 +43,10 @@ public static class Broadphase {
     }
 
     public static IEnumerator<IntPair> SpatialGrid(MyRigidbody[] bodies, float cellSize) {
-        // Clear all lists in the grid (don't clear dictionary to avoid allocations)
+        // Clear all lists in the grid
         foreach (var pair in _grid) {
             pair.Value.Clear();
+            _listIntPool.Push(pair.Value);
         }
         _grid.Clear();
 
@@ -53,7 +71,7 @@ public static class Broadphase {
                     for (int iz = minCell.z; iz <= maxCell.z; iz++) {
                         long key = EncodeCell(ix, iy, iz);
                         if (!_grid.ContainsKey(key)) {
-                            _grid[key] = new List<int>();
+                            _grid[key] = _listIntPool.Count > 0 ? _listIntPool.Pop() : new();
                         }
                         _grid[key].Add(i);
                     }
@@ -61,7 +79,10 @@ public static class Broadphase {
             }
         }
 
-        // Check collisions within each cell
+        // Check collisions within each cell and dedupe using HashSet
+        _pairSet.Clear();
+        _pairList.Clear();
+
         foreach (var pair in _grid) {
             var objects = pair.Value;
             if (objects.Count < 2) continue;
@@ -70,7 +91,8 @@ public static class Broadphase {
                 for (int b = a + 1; b < objects.Count; b++) {
                     int i1 = objects[a];
                     int i2 = objects[b];
-                    if (bodies[i1].AABB.Intersects(bodies[i2].AABB)) {
+                    var pairKey = ((long)i1 << 32) | (uint)i2;
+                    if (_pairSet.Add(pairKey) && bodies[i1].AABB.Intersects(bodies[i2].AABB)) {
                         yield return new IntPair { i1 = i1, i2 = i2 };
                     }
                 }

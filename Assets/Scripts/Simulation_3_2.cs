@@ -1,17 +1,10 @@
-using System.Collections.Generic;
 using UnityEngine;
 
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
 
-public enum BroadphaseType {
-    Basic,
-    SpatialGrid
-}
-
-// also used for 3_3 and 4_x
-public class Simulation_3_1 : MonoBehaviour {
+public class Simulation_3_2 : MonoBehaviour {
     MyRigidbody[] _bodies;
 
     [SerializeField] GameObject _bodyPrefab;
@@ -20,11 +13,10 @@ public class Simulation_3_1 : MonoBehaviour {
     [SerializeField] Vector3 _minSize;
     [SerializeField] Vector3 _maxSize;
     [SerializeField] float _bodyDensity = 0.1f;
-
-    [SerializeField] int _positionIterations = 3;
+    [SerializeField] float _baumgarte = 0.2f;
+    [SerializeField] int _SIIterations = 4;
     
-    [SerializeField] BroadphaseType _broadphaseType = BroadphaseType.Basic;
-    [SerializeField] float _gridCellSize = 2f;
+    float Dt => Time.fixedDeltaTime;
     
     void SpawnBodies() {
         for (int i = 0; i < _bodyCount; ++i) {
@@ -56,42 +48,41 @@ public class Simulation_3_1 : MonoBehaviour {
 
     void FixedUpdate() {
         foreach (var b in _bodies) {
+            b.UpdateAABB();
             if (b.Mass == 0f) {
-                b.UpdateAABB();
                 continue;
             }
-            b.SavePrevPosition();
             b.IntegrateVelocities();
-            b.IntegratePositions();
-            b.UpdateAABB();
         }
-
-        IEnumerator<Broadphase.IntPair> broadphase;
-        if (_broadphaseType == BroadphaseType.Basic) {
-            broadphase = Broadphase.Basic(_bodies);
-        } else {
-            broadphase = Broadphase.SpatialGrid(_bodies, _gridCellSize);
-        }
-        Narrowphase.GenerateContacts(_bodies, broadphase);
-
-        for (int i = 0; i < _positionIterations; ++i) {
-            foreach (var cnt in Narrowphase.GetContacts()) {
+        
+        Narrowphase.GenerateContacts(_bodies, Broadphase.Basic(_bodies));
+        
+        var contactList = Narrowphase.GetContacts();
+        var contacts = contactList.GetInternalArray();  // for modifying struct fields in place
+        for (int i = 0; i < _SIIterations; ++i) {
+            for (int j = 0; j < contactList.Count; ++j) {
+                var cnt = contacts[j];
                 var bodyA = _bodies[cnt.bodyIndexA];
                 var bodyB = _bodies[cnt.bodyIndexB];
                 var rAW = bodyA.transform.TransformDirection(cnt.anchorA);
                 var rBW = bodyB.transform.TransformDirection(cnt.anchorB);
                 var penetration = Vector3.Dot(-rAW - bodyA.transform.position + rBW + bodyB.transform.position, cnt.normal);
                 var c = penetration + 0.001f;  // to avoid contact jitter
-
-                if (c >= 0f) {
+                
+                var relativeVelocity =
+                    Vector3.Dot(cnt.normal, bodyB.GetPointVelocity(rBW) - bodyA.GetPointVelocity(rAW));
+                var w = MyRigidbody.GetEffectiveInvMass(bodyA, bodyB, rAW, rBW, cnt.normal);
+                var dLambda = (-relativeVelocity - _baumgarte * c / Dt) / w;
+                var newLambda = Mathf.Max(0f, cnt.lambda + dLambda);
+                dLambda = newLambda - cnt.lambda;
+                contacts[j].lambda = newLambda;
+                
+                if (dLambda <= 0f) {
                     continue;
                 }
-                
-                var w = MyRigidbody.GetEffectiveInvMass(bodyA, bodyB, rAW, rBW, cnt.normal);
-                var dLambda = -c / w;
-                dLambda = Mathf.Min(dLambda, 0.01f);
-                if (bodyA.Mass > 0f) bodyA.ApplyImpulseToPositions(rAW, cnt.normal * -dLambda);
-                if (bodyB.Mass > 0f) bodyB.ApplyImpulseToPositions(rBW, cnt.normal * dLambda);
+
+                if (bodyA.Mass > 0f) bodyA.ApplyImpulseToVelocities(rAW, cnt.normal * -dLambda);
+                if (bodyB.Mass > 0f) bodyB.ApplyImpulseToVelocities(rBW, cnt.normal * dLambda);
             }
         }
 
@@ -99,7 +90,7 @@ public class Simulation_3_1 : MonoBehaviour {
             if (b.Mass == 0f) {
                 continue;
             }
-            b.SetVelocitiesFromPrev();
+            b.IntegratePositions();
         }
     }
 }

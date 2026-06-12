@@ -24,7 +24,7 @@ public class Simulation_1_4 : MonoBehaviour {
 
     void FixedUpdate() {
         _rb.omega = _rb.IntegrateOmegaLocalImplicitGyro(Vector3.zero);
-        _rb.transform.rotation = _rb.ApplyAngularVelocity(_rb.omega);
+        _rb.transform.rotation = _rb.IntegrateRotation(_rb.omega);
         Visualize(_rb.L, _LTransform);
         Visualize(_L0, _L0Transform);
     }

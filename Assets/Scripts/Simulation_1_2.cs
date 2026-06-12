@@ -23,7 +23,7 @@ public class Simulation_1_2 : MonoBehaviour {
     }
 
     void FixedUpdate() {
-        _rb.transform.rotation = _rb.ApplyAngularVelocity(_rb.omega);
+        _rb.transform.rotation = _rb.IntegrateRotation(_rb.omega);
         Visualize(_rb.L, _LTransform);
         Visualize(_L0, _L0Transform);
     }

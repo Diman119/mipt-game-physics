@@ -278,7 +278,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "10 \u0442\u0435\u043B XPBD"
+  m_text: "10 \u0442\u0435\u043B SI + Baumgarte"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -941,7 +941,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 1769997914}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 91557991f4b550839bb6e4ab0da7fd15, type: 3}
+  m_Script: {fileID: 11500000, guid: 9f62a4b5d41276185845d3404b74d35a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Simulation_3_1
   _bodyPrefab: {fileID: 4077546940672535247, guid: 090fb81bb0d6df987b6b9c2410c8c767, type: 3}
@@ -952,9 +952,8 @@ MonoBehaviour:
   _minSize: {x: 1.5, y: 1.5, z: 1.5}
   _maxSize: {x: 2, y: 2, z: 2}
   _bodyDensity: 0.1
-  _positionIterations: 3
-  _broadphaseType: 0
-  _gridCellSize: 2
+  _baumgarte: 0.2
+  _SIIterations: 4
 --- !u!4 &1769997916
 Transform:
   m_ObjectHideFlags: 0
