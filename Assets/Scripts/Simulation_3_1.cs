@@ -7,7 +7,8 @@ using UnityEditor;
 
 public enum BroadphaseType {
     Basic,
-    SpatialGrid
+    SpatialGrid,
+    SweepAndPrune,
 }
 
 // also used for 3_3 and 4_x
@@ -25,13 +26,24 @@ public class Simulation_3_1 : MonoBehaviour {
     
     [SerializeField] BroadphaseType _broadphaseType = BroadphaseType.Basic;
     [SerializeField] float _gridCellSize = 2f;
-    
+
+    IEnumerator<Broadphase.IntPair> SelectedBroadphase {
+        get {
+            switch (_broadphaseType) {
+                case BroadphaseType.Basic: return Broadphase.Basic(_bodies);
+                case BroadphaseType.SpatialGrid: return Broadphase.SpatialGrid(_bodies, _gridCellSize);
+                case BroadphaseType.SweepAndPrune: return Broadphase.SweepAndPrune(_bodies);
+                default: return null;
+            }
+        }
+    }
+
     void SpawnBodies() {
         for (int i = 0; i < _bodyCount; ++i) {
             var b = Instantiate(_bodyPrefab, transform).GetComponent<MyRigidbody>();
             var pos = ExtensionMethods.RandomVectorBetween(_spawnBounds.min, _spawnBounds.max);
             var rot = Random.rotation;
-            pos.y = i * _minSize.y + 3f;
+            pos.y = i * _minSize.y + _spawnBounds.min.y;
             b.transform.SetPositionAndRotation(pos, rot);
             var size = ExtensionMethods.RandomVectorBetween(_minSize, _maxSize);
             var mass = size.x * size.y * size.z * _bodyDensity;
@@ -65,14 +77,8 @@ public class Simulation_3_1 : MonoBehaviour {
             b.IntegratePositions();
             b.UpdateAABB();
         }
-
-        IEnumerator<Broadphase.IntPair> broadphase;
-        if (_broadphaseType == BroadphaseType.Basic) {
-            broadphase = Broadphase.Basic(_bodies);
-        } else {
-            broadphase = Broadphase.SpatialGrid(_bodies, _gridCellSize);
-        }
-        Narrowphase.GenerateContacts(_bodies, broadphase);
+        
+        Narrowphase.GenerateContacts(_bodies, SelectedBroadphase);
 
         for (int i = 0; i < _positionIterations; ++i) {
             foreach (var cnt in Narrowphase.GetContacts()) {

@@ -23,7 +23,7 @@ public class Simulation_3_2 : MonoBehaviour {
             var b = Instantiate(_bodyPrefab, transform).GetComponent<MyRigidbody>();
             var pos = ExtensionMethods.RandomVectorBetween(_spawnBounds.min, _spawnBounds.max);
             var rot = Random.rotation;
-            pos.y = i * _minSize.y + 3f;
+            pos.y = i * _minSize.y + _spawnBounds.min.y;
             b.transform.SetPositionAndRotation(pos, rot);
             var size = ExtensionMethods.RandomVectorBetween(_minSize, _maxSize);
             var mass = size.x * size.y * size.z * _bodyDensity;

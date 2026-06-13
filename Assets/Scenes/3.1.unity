@@ -947,8 +947,8 @@ MonoBehaviour:
   _bodyPrefab: {fileID: 4077546940672535247, guid: 090fb81bb0d6df987b6b9c2410c8c767, type: 3}
   _bodyCount: 10
   _spawnBounds:
-    m_Center: {x: 0, y: 4, z: 0}
-    m_Extent: {x: 7, y: 2, z: 7}
+    m_Center: {x: 0, y: 3, z: 0}
+    m_Extent: {x: 7, y: 0, z: 7}
   _minSize: {x: 1.5, y: 1.5, z: 1.5}
   _maxSize: {x: 2, y: 2, z: 2}
   _bodyDensity: 0.1

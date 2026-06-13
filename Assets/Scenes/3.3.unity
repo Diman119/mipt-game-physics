@@ -947,7 +947,7 @@ MonoBehaviour:
   _bodyPrefab: {fileID: 4077546940672535247, guid: 090fb81bb0d6df987b6b9c2410c8c767, type: 3}
   _bodyCount: 1000
   _spawnBounds:
-    m_Center: {x: 0, y: 4, z: 0}
+    m_Center: {x: 0, y: -4, z: 0}
     m_Extent: {x: 7, y: 0, z: 7}
   _minSize: {x: 1, y: 1, z: 1}
   _maxSize: {x: 1.5, y: 1.5, z: 1.5}
@@ -1025,7 +1025,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7628207514834846474, guid: 090fb81bb0d6df987b6b9c2410c8c767, type: 3}
       propertyPath: m_LocalPosition.y
-      value: -4
+      value: -8
       objectReference: {fileID: 0}
     - target: {fileID: 7628207514834846474, guid: 090fb81bb0d6df987b6b9c2410c8c767, type: 3}
       propertyPath: m_LocalPosition.z

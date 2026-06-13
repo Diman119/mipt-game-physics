@@ -207,10 +207,8 @@ public static class Narrowphase {
         _contacts.Clear();
         while (broadphase.MoveNext()) {
             var pair = broadphase.Current;
-            // Debug.Log($"{pair.i1} {pair.i2}");
             GenerateContacts(bodies[pair.i1], bodies[pair.i2], _contacts, pair.i1, pair.i2);
         }
-        // Debug.Log("===============");
     }
 
     // Get the static contacts list

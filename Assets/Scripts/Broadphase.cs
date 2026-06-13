@@ -9,7 +9,8 @@ public static class Broadphase {
         public long ToLong() {
             if (i1 < i2) {
                 return ((long)i1 << 32) | (uint)i2;
-            } else {
+            }
+            else {
                 return ((long)i2 << 32) | (uint)i1;
             }
         }
@@ -19,27 +20,31 @@ public static class Broadphase {
         }
     }
 
-    // Reusable grid for spatial partitioning - persists across frames
-    private static readonly Dictionary<long, List<int>> _grid = new Dictionary<long, List<int>>();
-    private static readonly Stack<List<int>> _listIntPool = new();
-    // Reusable HashSet for deduping pairs
-    private static readonly HashSet<long> _pairSet = new HashSet<long>();
-    private static readonly List<IntPair> _pairList = new List<IntPair>();
-
-    // Encodes 3D cell coordinates into a single long
-    private static long EncodeCell(int ix, int iy, int iz) {
-        const long mask = 0x1FFFFF; // 21 bits: 0x1FFFFF = 2097151
-        return ((ix & mask) << 42) | ((iy & mask) << 21) | (iz & mask);
-    }
-
+    // Basic ================================================================
     public static IEnumerator<IntPair> Basic(MyRigidbody[] bodies) {
         for (int i = 0; i < bodies.Length; i++) {
             for (int j = i + 1; j < bodies.Length; j++) {
                 if (bodies[i].AABB.Intersects(bodies[j].AABB)) {
-                    yield return new IntPair { i1 = i, i2 = j };
+                    yield return new() { i1 = i, i2 = j };
                 }
             }
         }
+    }
+
+    // Spatial grid =========================================================
+    // Reusable grid for spatial partitioning - persists across frames
+    static readonly Dictionary<long, List<int>> _grid = new();
+
+    static readonly Stack<List<int>> _listIntPool = new();
+
+    // Reusable HashSet for deduping pairs
+    static readonly HashSet<long> _pairSet = new();
+    static readonly List<IntPair> _pairList = new();
+
+    // Encodes 3D cell coordinates into a single long
+    static long EncodeCell(int ix, int iy, int iz) {
+        const long mask = 0x1FFFFF; // 21 bits: 0x1FFFFF = 2097151
+        return ((ix & mask) << 42) | ((iy & mask) << 21) | (iz & mask);
     }
 
     public static IEnumerator<IntPair> SpatialGrid(MyRigidbody[] bodies, float cellSize) {
@@ -49,16 +54,6 @@ public static class Broadphase {
             _listIntPool.Push(pair.Value);
         }
         _grid.Clear();
-
-        if (bodies.Length == 0) {
-            yield break;
-        }
-
-        // Calculate global bounds of all objects
-        Bounds globalBounds = bodies[0].AABB;
-        for (int i = 1; i < bodies.Length; i++) {
-            globalBounds.Encapsulate(bodies[i].AABB);
-        }
 
         // Insert each body into overlapping grid cells
         for (int i = 0; i < bodies.Length; i++) {
@@ -73,6 +68,7 @@ public static class Broadphase {
                         if (!_grid.ContainsKey(key)) {
                             _grid[key] = _listIntPool.Count > 0 ? _listIntPool.Pop() : new();
                         }
+
                         _grid[key].Add(i);
                     }
                 }
@@ -93,18 +89,71 @@ public static class Broadphase {
                     int i2 = objects[b];
                     var pairKey = ((long)i1 << 32) | (uint)i2;
                     if (_pairSet.Add(pairKey) && bodies[i1].AABB.Intersects(bodies[i2].AABB)) {
-                        yield return new IntPair { i1 = i1, i2 = i2 };
+                        yield return new() { i1 = i1, i2 = i2 };
                     }
                 }
             }
         }
     }
 
-    private static Vector3Int GetCellCoords(Vector3 position, float cellSize) {
+    static Vector3Int GetCellCoords(Vector3 position, float cellSize) {
         return new Vector3Int(
             (int)Mathf.Floor(position.x / cellSize),
             (int)Mathf.Floor(position.y / cellSize),
             (int)Mathf.Floor(position.z / cellSize)
         );
+    }
+
+    // Sweep and Prune =========================================================
+    static int[] _sortedIndices;
+
+    public static IEnumerator<IntPair> SweepAndPrune(MyRigidbody[] bodies) {
+        if (_sortedIndices is null || bodies.Length != _sortedIndices.Length) {
+            _sortedIndices = new int[bodies.Length];
+            for (int i = 0; i < _sortedIndices.Length; i++) _sortedIndices[i] = i;
+        }
+        
+        // Sort by Y axis
+        for (int i = 1; i < _sortedIndices.Length; i++) {
+            int currentIndex = _sortedIndices[i];
+            float currentMinY = bodies[currentIndex].AABB.min.y;
+            int j = i - 1;
+
+            // Shift elements that are greater than currentMinY to the right
+            while (j >= 0 && bodies[_sortedIndices[j]].AABB.min.y > currentMinY) {
+                _sortedIndices[j + 1] = _sortedIndices[j];
+                j--;
+            }
+
+            _sortedIndices[j + 1] = currentIndex;
+        }
+        
+        for (int i = 0; i < _sortedIndices.Length; i++) {
+            int idxA = _sortedIndices[i];
+            var a = bodies[idxA].AABB;
+
+            float maxX_A = a.max.x;
+            float minX_A = a.min.x;
+            float maxY_A = a.max.y;
+            float minZ_A = a.min.z;
+            float maxZ_A = a.max.z;
+
+            for (int j = i + 1; j < _sortedIndices.Length; j++) {
+                int idxB = _sortedIndices[j];
+                var b = bodies[idxB].AABB;
+
+                // Because the array is sorted by min.y, if the next object's min.y
+                // is greater than our max.y, no subsequent objects can overlap on the Y axis.
+                if (b.min.y > maxY_A) {
+                    break;
+                }
+
+                // Y-axis overlap is guaranteed. Check X and Z axes.
+                if (maxX_A >= b.min.x && minX_A <= b.max.x &&
+                    maxZ_A >= b.min.z && minZ_A <= b.max.z) {
+                    yield return new() { i1 = idxA, i2 = idxB };
+                }
+            }
+        }
     }
 }
