@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using UnityEngine;
 
 #if UNITY_EDITOR
@@ -22,19 +21,19 @@ public class Simulation_3_1 : MonoBehaviour {
     [SerializeField] Vector3 _maxSize;
     [SerializeField] float _bodyDensity = 0.1f;
 
+    [SerializeField] float _staticFriction = 1f;
+    [SerializeField] float _dynamicFriction = 0.4f;
+
     [SerializeField] int _positionIterations = 3;
     
     [SerializeField] BroadphaseType _broadphaseType = BroadphaseType.Basic;
     [SerializeField] float _gridCellSize = 2f;
 
-    IEnumerator<Broadphase.IntPair> SelectedBroadphase {
-        get {
-            switch (_broadphaseType) {
-                case BroadphaseType.Basic: return Broadphase.Basic(_bodies);
-                case BroadphaseType.SpatialGrid: return Broadphase.SpatialGrid(_bodies, _gridCellSize);
-                case BroadphaseType.SweepAndPrune: return Broadphase.SweepAndPrune(_bodies);
-                default: return null;
-            }
+    void RunBroadphase() {
+        switch (_broadphaseType) {
+            case BroadphaseType.Basic: Broadphase.Basic(_bodies); break;
+            case BroadphaseType.SpatialGrid: Broadphase.SpatialGrid(_bodies, _gridCellSize); break;
+            case BroadphaseType.SweepAndPrune: Broadphase.SweepAndPrune(_bodies); break;
         }
     }
 
@@ -67,26 +66,43 @@ public class Simulation_3_1 : MonoBehaviour {
 #endif
 
     void FixedUpdate() {
+        // predict
         foreach (var b in _bodies) {
+            b.SavePrevPosition();
+            
             if (b.Mass == 0f) {
                 b.UpdateAABB();
                 continue;
             }
-            b.SavePrevPosition();
+            
             b.IntegrateVelocities();
             b.IntegratePositions();
+
+            const float M = 5e3f;
+            var p = b.transform.position;
+            b.transform.position = new(Mathf.Clamp(p.x, -M, M), Mathf.Clamp(p.y, -M, M), Mathf.Clamp(p.z, -M, M));
+            
             b.UpdateAABB();
         }
         
-        Narrowphase.GenerateContacts(_bodies, SelectedBroadphase);
+        // get contacts
+        RunBroadphase();
+        Narrowphase.GenerateContacts(_bodies);
 
+        var contactList = Narrowphase.GetContacts();
+        var contacts = contactList.GetInternalArray();  // for modifying struct fields in place
         for (int i = 0; i < _positionIterations; ++i) {
-            foreach (var cnt in Narrowphase.GetContacts()) {
+            for (int j = 0; j < contactList.Count; ++j) {
+                var cnt = contacts[j];
+                
+                // normal solve
                 var bodyA = _bodies[cnt.bodyIndexA];
                 var bodyB = _bodies[cnt.bodyIndexB];
                 var rAW = bodyA.transform.TransformDirection(cnt.anchorA);
                 var rBW = bodyB.transform.TransformDirection(cnt.anchorB);
-                var penetration = Vector3.Dot(-rAW - bodyA.transform.position + rBW + bodyB.transform.position, cnt.normal);
+                var pA = rAW + bodyA.transform.position;
+                var pB = rBW + bodyB.transform.position;
+                var penetration = Vector3.Dot(pB - pA, cnt.normal);
                 var c = penetration + 0.001f;  // to avoid contact jitter
 
                 if (c >= 0f) {
@@ -94,10 +110,33 @@ public class Simulation_3_1 : MonoBehaviour {
                 }
                 
                 var w = MyRigidbody.GetEffectiveInvMass(bodyA, bodyB, rAW, rBW, cnt.normal);
-                var dLambda = -c / w;
-                dLambda = Mathf.Min(dLambda, 0.01f);
-                if (bodyA.Mass > 0f) bodyA.ApplyImpulseToPositions(rAW, cnt.normal * -dLambda);
-                if (bodyB.Mass > 0f) bodyB.ApplyImpulseToPositions(rBW, cnt.normal * dLambda);
+                var dLambdaN = -c / w;
+                dLambdaN = Mathf.Min(dLambdaN, 0.01f);
+                if (bodyA.Mass > 0f) bodyA.ApplyImpulseToPositions(rAW, cnt.normal * -dLambdaN);
+                if (bodyB.Mass > 0f) bodyB.ApplyImpulseToPositions(rBW, cnt.normal * dLambdaN);
+
+                var newLambdaN = cnt.lambdaN + dLambdaN;
+                contacts[j].lambdaN = newLambdaN;
+                
+                // friction solve
+                var pAPrev = bodyA.PrevPosition + bodyA.PrevRotation * cnt.anchorA;
+                var pBPrev = bodyB.PrevPosition + bodyB.PrevRotation * cnt.anchorB;
+                var dA = pA - pAPrev;
+                var dB = pB - pBPrev;
+                var dP = dB - dA;
+                var dPTan = Vector3.ProjectOnPlane(dP, cnt.normal);
+                var dPMag = dPTan.magnitude;
+                if (dPMag < 1e-6f) continue;
+                var frictionDir = dPTan / dPMag;
+                var wf = MyRigidbody.GetEffectiveInvMass(bodyA, bodyB, rAW, rBW, frictionDir);
+                var totalLambdaT = cnt.lambdaT - dPMag / wf;
+                var newLambdaT = totalLambdaT > -_staticFriction * newLambdaN
+                    ? totalLambdaT  // static
+                    : -_dynamicFriction * newLambdaN;  // dynamic
+                var dLambdaT = newLambdaT - cnt.lambdaT;
+                if (bodyA.Mass > 0f) bodyA.ApplyImpulseToPositions(rAW, frictionDir * -dLambdaT);
+                if (bodyB.Mass > 0f) bodyB.ApplyImpulseToPositions(rBW, frictionDir * dLambdaT);
+                contacts[j].lambdaT = newLambdaT;
             }
         }
 

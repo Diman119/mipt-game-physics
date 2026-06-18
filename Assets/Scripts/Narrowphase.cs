@@ -11,7 +11,8 @@ public static class Narrowphase {
         public Vector3 anchorB; // contact point in body B's local space, moved along normal
         public int bodyIndexA;
         public int bodyIndexB;
-        public float lambda;
+        public float lambdaN;
+        public float lambdaT;
     }
 
     // Static arrays to avoid allocations
@@ -203,11 +204,13 @@ public static class Narrowphase {
     }
 
     // Combined broadphase + narrowphase - uses static _contacts list
-    public static void GenerateContacts(MyRigidbody[] bodies, IEnumerator<Broadphase.IntPair> broadphase) {
+    public static void GenerateContacts(MyRigidbody[] bodies) {
         _contacts.Clear();
-        while (broadphase.MoveNext()) {
-            var pair = broadphase.Current;
-            GenerateContacts(bodies[pair.i1], bodies[pair.i2], _contacts, pair.i1, pair.i2);
+        var pairs = Broadphase.GetIndices();
+        for (int i = 0; i < pairs.Count; i += 2) {
+            var i1 = pairs[i];
+            var i2 = pairs[i + 1];
+            GenerateContacts(bodies[i1], bodies[i2], _contacts, i1, i2);
         }
     }
 

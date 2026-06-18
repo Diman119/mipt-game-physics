@@ -55,7 +55,8 @@ public class Simulation_3_2 : MonoBehaviour {
             b.IntegrateVelocities();
         }
         
-        Narrowphase.GenerateContacts(_bodies, Broadphase.Basic(_bodies));
+        Broadphase.Basic(_bodies);
+        Narrowphase.GenerateContacts(_bodies);
         
         var contactList = Narrowphase.GetContacts();
         var contacts = contactList.GetInternalArray();  // for modifying struct fields in place
@@ -73,9 +74,9 @@ public class Simulation_3_2 : MonoBehaviour {
                     Vector3.Dot(cnt.normal, bodyB.GetPointVelocity(rBW) - bodyA.GetPointVelocity(rAW));
                 var w = MyRigidbody.GetEffectiveInvMass(bodyA, bodyB, rAW, rBW, cnt.normal);
                 var dLambda = (-relativeVelocity - _baumgarte * c / Dt) / w;
-                var newLambda = Mathf.Max(0f, cnt.lambda + dLambda);
-                dLambda = newLambda - cnt.lambda;
-                contacts[j].lambda = newLambda;
+                var newLambda = Mathf.Max(0f, cnt.lambdaN + dLambda);
+                dLambda = newLambda - cnt.lambdaN;
+                contacts[j].lambdaN = newLambda;
                 
                 if (dLambda <= 0f) {
                     continue;

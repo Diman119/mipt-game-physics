@@ -15,8 +15,8 @@ public class MyRigidbody : MonoBehaviour {
     Vector3 _pendingForce;
     Vector3 _pendingTorque;
 
-    Vector3 _prevPosition;
-    Quaternion _prevRotation;
+    public Vector3 PrevPosition { get; private set; }
+    public Quaternion PrevRotation { get; private set; }
 
     public Matrix3x3 LocalI => _localI;
     public float Mass => _mass;
@@ -156,13 +156,13 @@ public class MyRigidbody : MonoBehaviour {
         velocity + Vector3.Cross(omega, offsetGlobal);
     
     public void SavePrevPosition() {
-        _prevPosition = transform.position;
-        _prevRotation = transform.rotation;
+        PrevPosition = transform.position;
+        PrevRotation = transform.rotation;
     }
 
     public void SetVelocitiesFromPrev() {
-        velocity = (transform.position - _prevPosition) / Dt;
-        var dq = transform.rotation * Quaternion.Inverse(_prevRotation);
+        velocity = (transform.position - PrevPosition) / Dt;
+        var dq = transform.rotation * Quaternion.Inverse(PrevRotation);
         omega = new Vector3(dq.x, dq.y, dq.z) * (Mathf.Sign(dq.w) * 2 / Dt);
     }
 

@@ -2,30 +2,18 @@ using System.Collections.Generic;
 using UnityEngine;
 
 public static class Broadphase {
-    public struct IntPair {
-        public int i1, i2;
+    static readonly List<int> _pairIndices = new();
 
-        // Encode pair as long for HashSet (smaller index in upper 32 bits)
-        public long ToLong() {
-            if (i1 < i2) {
-                return ((long)i1 << 32) | (uint)i2;
-            }
-            else {
-                return ((long)i2 << 32) | (uint)i1;
-            }
-        }
-
-        public static IntPair FromLong(long value) {
-            return new IntPair { i1 = (int)(value >> 32), i2 = (int)(value & 0xFFFFFFFF) };
-        }
-    }
+    public static List<int> GetIndices() => _pairIndices;
 
     // Basic ================================================================
-    public static IEnumerator<IntPair> Basic(MyRigidbody[] bodies) {
+    public static void Basic(MyRigidbody[] bodies) {
+        _pairIndices.Clear();
         for (int i = 0; i < bodies.Length; i++) {
             for (int j = i + 1; j < bodies.Length; j++) {
                 if (bodies[i].AABB.Intersects(bodies[j].AABB)) {
-                    yield return new() { i1 = i, i2 = j };
+                    _pairIndices.Add(i);
+                    _pairIndices.Add(j);
                 }
             }
         }
@@ -34,12 +22,10 @@ public static class Broadphase {
     // Spatial grid =========================================================
     // Reusable grid for spatial partitioning - persists across frames
     static readonly Dictionary<long, List<int>> _grid = new();
-
     static readonly Stack<List<int>> _listIntPool = new();
 
     // Reusable HashSet for deduping pairs
     static readonly HashSet<long> _pairSet = new();
-    static readonly List<IntPair> _pairList = new();
 
     // Encodes 3D cell coordinates into a single long
     static long EncodeCell(int ix, int iy, int iz) {
@@ -47,7 +33,9 @@ public static class Broadphase {
         return ((ix & mask) << 42) | ((iy & mask) << 21) | (iz & mask);
     }
 
-    public static IEnumerator<IntPair> SpatialGrid(MyRigidbody[] bodies, float cellSize) {
+    public static void SpatialGrid(MyRigidbody[] bodies, float cellSize) {
+        _pairIndices.Clear();
+        
         // Clear all lists in the grid
         foreach (var pair in _grid) {
             pair.Value.Clear();
@@ -77,7 +65,6 @@ public static class Broadphase {
 
         // Check collisions within each cell and dedupe using HashSet
         _pairSet.Clear();
-        _pairList.Clear();
 
         foreach (var pair in _grid) {
             var objects = pair.Value;
@@ -89,7 +76,8 @@ public static class Broadphase {
                     int i2 = objects[b];
                     var pairKey = ((long)i1 << 32) | (uint)i2;
                     if (_pairSet.Add(pairKey) && bodies[i1].AABB.Intersects(bodies[i2].AABB)) {
-                        yield return new() { i1 = i1, i2 = i2 };
+                        _pairIndices.Add(i1);
+                        _pairIndices.Add(i2);
                     }
                 }
             }
@@ -107,7 +95,9 @@ public static class Broadphase {
     // Sweep and Prune =========================================================
     static int[] _sortedIndices;
 
-    public static IEnumerator<IntPair> SweepAndPrune(MyRigidbody[] bodies) {
+    public static void SweepAndPrune(MyRigidbody[] bodies) {
+        _pairIndices.Clear();
+        
         if (_sortedIndices is null || bodies.Length != _sortedIndices.Length) {
             _sortedIndices = new int[bodies.Length];
             for (int i = 0; i < _sortedIndices.Length; i++) _sortedIndices[i] = i;
@@ -151,7 +141,8 @@ public static class Broadphase {
                 // Y-axis overlap is guaranteed. Check X and Z axes.
                 if (maxX_A >= b.min.x && minX_A <= b.max.x &&
                     maxZ_A >= b.min.z && minZ_A <= b.max.z) {
-                    yield return new() { i1 = idxA, i2 = idxB };
+                    _pairIndices.Add(idxA);
+                    _pairIndices.Add(idxB);
                 }
             }
         }
