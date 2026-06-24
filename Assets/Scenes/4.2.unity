@@ -955,7 +955,7 @@ MonoBehaviour:
   _staticFriction: 1
   _dynamicFriction: 0.4
   _positionIterations: 2
-  _broadphaseType: 2
+  _broadphaseType: 3
   _gridCellSize: 4
 --- !u!4 &1769997916
 Transform:

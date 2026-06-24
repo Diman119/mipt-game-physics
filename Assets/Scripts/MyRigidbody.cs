@@ -31,7 +31,8 @@ public class MyRigidbody : MonoBehaviour {
         var rot = transform.rotation;
         var ext = _size / 2f;
         var corner = rot * ext;
-        _aabb.SetMinMax(pos - corner, pos + corner);
+        _aabb.SetMinMax(pos - corner, pos - corner);
+        _aabb.Encapsulate(pos + corner);
         corner = rot * new Vector3(-ext.x, ext.y, ext.z);
         _aabb.Encapsulate(pos + corner);
         _aabb.Encapsulate(pos - corner);
@@ -108,7 +109,7 @@ public class MyRigidbody : MonoBehaviour {
         return transform.TransformDirection(omegaLocal);
     }
 
-    public Vector3 IntegrateVelocity(Vector3 force) {
+    Vector3 IntegrateVelocity(Vector3 force) {
         var v = velocity;
         v += force * (Dt / _mass);
         if (_useGravity) {

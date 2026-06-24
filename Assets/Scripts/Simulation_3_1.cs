@@ -8,6 +8,7 @@ public enum BroadphaseType {
     Basic,
     SpatialGrid,
     SweepAndPrune,
+    LBVH,
 }
 
 // also used for 3_3 and 4_x
@@ -34,6 +35,7 @@ public class Simulation_3_1 : MonoBehaviour {
             case BroadphaseType.Basic: Broadphase.Basic(_bodies); break;
             case BroadphaseType.SpatialGrid: Broadphase.SpatialGrid(_bodies, _gridCellSize); break;
             case BroadphaseType.SweepAndPrune: Broadphase.SweepAndPrune(_bodies); break;
+            case BroadphaseType.LBVH: Broadphase.LBVH(_bodies); break;
         }
     }
 
@@ -62,6 +64,7 @@ public class Simulation_3_1 : MonoBehaviour {
     void OnDrawGizmos() {
         Handles.color = Color.yellow;
         Handles.DrawWireCube(_spawnBounds.center, _spawnBounds.size);
+        // Broadphase.DrawLBVH();
     }
 #endif
 
