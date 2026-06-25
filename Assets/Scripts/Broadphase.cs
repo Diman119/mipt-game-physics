@@ -154,7 +154,7 @@ public static class Broadphase {
     // LBVH ===================================================================================
     static uint[] _mortonCodes;
     static LBVHNode[] _LBVHNodes;
-    static int _LBVHinternalNodeCounter;
+    static int _LBVHInternalNodeCounter;
 
     struct LBVHNode {
         public Bounds bounds;
@@ -198,7 +198,7 @@ public static class Broadphase {
     }
 
     static void BuildLBVH(MyRigidbody[] bodies) {
-        if (_sortedIndices is null || bodies.Length != _sortedIndices.Length) {
+        if (_mortonCodes is null || bodies.Length != _mortonCodes.Length) {
             _sortedIndices = new int[bodies.Length];
             _mortonCodes = new uint[bodies.Length];
             _LBVHNodes = new LBVHNode[bodies.Length * 2 - 1];
@@ -230,7 +230,7 @@ public static class Broadphase {
             _LBVHNodes[i].bodyIndex = -1;
         }
 
-        _LBVHinternalNodeCounter = leafCount;
+        _LBVHInternalNodeCounter = leafCount;
 
         BuildLBVHRecursive(0, leafCount - 1);
     }
@@ -243,7 +243,7 @@ public static class Broadphase {
         }
 
         // Выделяем индекс для текущего внутреннего узла
-        int currentNodeIndex = _LBVHinternalNodeCounter++;
+        int currentNodeIndex = _LBVHInternalNodeCounter++;
 
         // Находим, где разделить диапазон [first, last] на две части
         int split = FindSplit(first, last);
